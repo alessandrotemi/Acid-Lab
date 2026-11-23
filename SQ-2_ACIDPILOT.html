@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SQ-2 ACIDPILOT</title>
+<meta name="description" content="Sequencer acid a due tracce per telefono Android: riceve il MIDI clock dall'Electribe e pilota TD-3 e Donner B1 su due uscite/canali MIDI.">
+<meta name="doclab:category" content="strumenti">
+<meta name="doclab:version" content="1.0.0">
+<meta name="theme-color" content="#0e0f10">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23141618'/%3E%3Cpath d='M5 22h5l3-12 4 16 3-10h7' fill='none' stroke='%23ffb000' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --amber:#ffb000;--amber-d:#6b4a00;--green:#3dff8a;--red:#ff3d2e;--cyan:#35d0ff;
+  --tx:#d8d8d0;--dim:#7b8186;--line:#2b3034;
+  --mono:"JetBrains Mono","Roboto Mono",ui-monospace,"SF Mono",Menlo,Consolas,"Droid Sans Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:#070808;color:var(--tx);font-family:var(--mono);overscroll-behavior:none}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+button,select,input,label{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;touch-action:manipulation}
+.hidden{display:none!important}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0}
+
+#app{max-width:640px;margin:0 auto;padding:calc(8px + env(safe-area-inset-top)) 8px calc(12px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:7px;min-height:100vh;
+  background:linear-gradient(180deg,#1c1e21 0%,#131416 55%,#0e0f10 100%);
+  border-left:1px solid #000;border-right:1px solid #000}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  background:linear-gradient(180deg,#2b2f34,#1c1f23);border:1px solid #363b41;border-bottom-color:#0d0e0f;border-radius:6px;
+  box-shadow:0 2px 0 #050505,inset 0 1px 0 rgba(255,255,255,.07);min-height:36px;font-size:11px;letter-spacing:.05em;color:#cfd1ca;padding:0 6px;white-space:nowrap}
+.btn:active{transform:translateY(1px);box-shadow:0 1px 0 #050505}
+.btn.on{color:#151000;background:linear-gradient(180deg,#ffc84a,#e09800);border-color:#ffb000;text-shadow:none}
+.btn.dim{opacity:.35;pointer-events:none}
+.btn.warn{color:#fff;background:linear-gradient(180deg,#ff6a55,#c1261a);border-color:#ff3d2e}
+
+/* header */
+.top{display:flex;align-items:center;gap:6px}
+.logo{display:flex;flex-direction:column;line-height:1;margin-right:auto;min-width:0}
+.logo b{font-size:21px;color:var(--amber);letter-spacing:.03em;text-shadow:0 0 8px rgba(255,176,0,.45)}
+.logo span{font-size:8.5px;letter-spacing:.3em;color:#8a8f94;margin-top:3px}
+.pill{display:flex;align-items:center;gap:6px;height:42px;padding:0 9px;border-radius:6px;background:#050605;border:1px solid #2a2d30;box-shadow:inset 0 0 12px rgba(0,0,0,.9)}
+.pill .src{font-size:10px;color:#9aa0a5;letter-spacing:.1em}
+.lcd{font-size:18px;color:var(--amber);text-shadow:0 0 6px rgba(255,176,0,.6);min-width:54px;text-align:right}
+.led{width:9px;height:9px;border-radius:50%;background:#2a1d00;box-shadow:inset 0 0 2px #000;flex:none}
+.led.lit{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.tbtn{width:42px;height:42px;font-size:16px;padding:0}
+.tbtn.play.run{background:linear-gradient(180deg,#5dffa0,#1fbf5c);color:#032;border-color:#3dff8a}
+
+.banner{padding:11px 10px;border-radius:6px;font-size:12px;text-align:center;border:1px solid;line-height:1.35}
+.banner.cta{background:linear-gradient(180deg,#ffc84a,#e09800);color:#151000;border-color:#ffb000;font-weight:700;cursor:pointer}
+.banner.err{background:#2a0c09;color:#ff9a8c;border-color:#ff3d2e}
+.banner.info{background:#0f1a14;color:#8fe8b2;border-color:#1f6b41;cursor:pointer}
+
+/* rack */
+#rack{display:flex;flex-direction:column;gap:6px}
+.trk{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"n p m t" "b b b b";gap:6px;align-items:center;
+  padding:7px 8px 7px;border-radius:8px;background:#141618;border:1px solid #262a2e;cursor:pointer}
+.trk.sel{border-color:var(--amber);box-shadow:0 0 0 1px rgba(255,176,0,.25),inset 0 0 18px rgba(255,176,0,.05)}
+.tsel{grid-area:n;display:flex;align-items:center;gap:7px;min-width:0}
+.tinfo{min-width:0}
+.tname{font-size:14px;font-weight:700;color:#ecece4;letter-spacing:.04em}
+.tport{font-size:9px;color:#7d848a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.tport.warn{color:#ff7a6b}
+.oled{width:8px;height:8px;border-radius:50%;background:#0f2a1a;flex:none}
+.oled.lit{background:var(--green);box-shadow:0 0 8px var(--green)}
+.tpat{grid-area:p;font-size:13px;color:var(--green);min-width:66px;text-align:center;background:#050605;border-radius:4px;padding:8px 5px;border:1px solid #222;text-shadow:0 0 5px rgba(61,255,138,.5)}
+.tpat .q{color:var(--amber);animation:blink .5s steps(1) infinite;text-shadow:0 0 5px rgba(255,176,0,.6)}
+@keyframes blink{50%{opacity:.15}}
+.trk .mute{grid-area:m;width:50px}
+.trk .mute.on{color:#fff;background:linear-gradient(180deg,#ff6a55,#c1261a);border-color:#ff3d2e}
+.ttr{grid-area:t;display:flex;align-items:center;gap:2px}
+.ttr .btn{width:30px;padding:0;font-size:14px}
+.ttr .tv{width:28px;text-align:center;font-size:12px;color:var(--amber)}
+.tbar{grid-area:b;height:7px;display:flex;gap:2px}
+.tbar i{flex:1;background:#1b1f22;border-radius:1px}
+.tbar i.bt{background:#2a3036}
+.tbar i.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+
+/* sections */
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;font-size:9px;letter-spacing:.22em;color:var(--dim);margin:2px 2px 4px}
+.sec-h .inf{letter-spacing:.06em;color:var(--amber);font-size:10px}
+.row8{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.scnwrap{display:grid;grid-template-columns:minmax(0,1fr) 62px;gap:5px}
+.scn{min-height:34px;font-size:11px;padding:0}
+.scn.has{color:var(--amber)}
+.scn.act{box-shadow:0 0 0 2px var(--amber),0 2px 0 #050505}
+.scn.arm{animation:blink .45s steps(1) infinite}
+.pad{min-height:44px;font-size:13px;position:relative;padding:0}
+.pad.has::after{content:"";position:absolute;left:50%;bottom:5px;width:14px;height:3px;margin-left:-7px;border-radius:2px;background:#59616a}
+.pad.play{color:#04210f;background:linear-gradient(180deg,#5dffa0,#1fbf5c);border-color:#3dff8a}
+.pad.play.has::after{background:#0b5a2c}
+.pad.queued{animation:qb .4s steps(1) infinite}
+@keyframes qb{50%{background:linear-gradient(180deg,#ffc84a,#e09800);color:#151000;border-color:#ffb000}}
+.pad.edit{outline:2px solid var(--amber);outline-offset:1px}
+
+.tools{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.tools .btn{padding:0;font-size:10.5px;min-height:34px}
+.tools .val{display:flex;align-items:center;justify-content:center;background:#050605;border:1px solid #222;border-radius:4px;color:var(--amber);font-size:13px}
+.tools .w2{grid-column:span 2}
+
+/* step grid */
+.grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.st{height:56px;border-radius:6px;background:#121416;border:1px solid #2a2f33;display:flex;flex-direction:column;justify-content:space-between;
+  padding:3px 4px;position:relative;color:#5d6368;overflow:hidden}
+.st .no{font-size:8px;line-height:1}
+.st .nt{font-size:12.5px;color:#3e4449;text-align:center;line-height:1}
+.st .fx{display:flex;justify-content:space-between;font-size:9px;font-weight:700;line-height:1}
+.st .fx b{color:transparent}
+.st.bt{border-top:2px solid #4a5157}
+.st.on{background:linear-gradient(180deg,#2c3137,#1c2024)}
+.st.on .nt{color:#f2f2ea}
+.st.acc .fx .a{color:var(--red);text-shadow:0 0 4px var(--red)}
+.st.sld .fx .s{color:var(--cyan);text-shadow:0 0 4px var(--cyan)}
+.st.sel{border-color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber)}
+.st.ph{background:linear-gradient(180deg,#1f4a31,#123222)}
+.st.ph::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--green);box-shadow:0 0 8px var(--green)}
+.st.out{opacity:.22;pointer-events:none}
+
+/* step editor */
+.sedit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.4fr) minmax(0,1fr);gap:5px}
+.sedit .btn{padding:0;font-size:11px;min-height:38px}
+#bAcc.on{background:linear-gradient(180deg,#ff6a55,#c1261a);border-color:#ff3d2e;color:#fff}
+#bSld.on{background:linear-gradient(180deg,#6fe0ff,#1b97c4);border-color:#35d0ff;color:#01202b}
+#bRec.on{background:linear-gradient(180deg,#ff6a55,#c1261a);border-color:#ff3d2e;color:#fff;animation:none}
+.oct{display:grid;grid-template-columns:1fr auto 1fr;gap:3px;align-items:center}
+.oct .btn{font-size:13px}
+.oct span{font-size:11px;color:var(--amber);min-width:24px;text-align:center}
+
+/* keyboard */
+.kb{position:relative;height:126px;display:flex;gap:3px;margin-top:2px}
+.wk{flex:1;background:linear-gradient(180deg,#e9e7dd,#cbc8ba);border-radius:0 0 6px 6px;border:1px solid #000;box-shadow:inset 0 -5px 0 #aaa696;
+  position:relative;display:flex;align-items:flex-end;justify-content:center;padding-bottom:9px;color:#666;font-size:10px}
+.bk{position:absolute;top:0;height:60%;width:9%;background:linear-gradient(180deg,#2a2d30,#0b0c0d);border:1px solid #000;border-radius:0 0 4px 4px;z-index:2;
+  color:#8a8f94;font-size:8px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px}
+.wk.sc{box-shadow:inset 0 -5px 0 var(--amber)}
+.bk.sc{border-bottom:4px solid var(--amber)}
+.wk.act{background:linear-gradient(180deg,#fff3cc,#ffc84a);color:#3a2a00}
+.bk.act{background:linear-gradient(180deg,#8a6500,#ffb000);color:#1a1200}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.74);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{width:100%;max-width:640px;max-height:92vh;overflow:auto;background:#17191c;border-top:2px solid var(--amber);border-radius:12px 12px 0 0;
+  padding:12px 12px calc(18px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.shd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.shd b{color:var(--amber);font-size:15px;letter-spacing:.12em}
+.shd .btn{width:44px}
+.blk{border:1px solid #2a2e33;border-radius:8px;padding:9px;margin-bottom:9px;background:#131518}
+.blk h4{font-size:9px;letter-spacing:.24em;color:var(--dim);font-weight:400;margin-bottom:8px}
+.fr{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.fr:last-child{margin-bottom:0}
+.fr .k{font-size:11px;color:#aeb3b7;min-width:92px}
+.fr .v{font-size:12px;color:var(--amber);min-width:44px;text-align:right}
+.fr select,.fr input[type=text]{flex:1;min-width:0;height:38px;background:#0b0c0d;border:1px solid #33383e;border-radius:6px;padding:0 8px;font-size:12px;color:#e6e6de}
+.fr input[type=text]{-webkit-user-select:text;user-select:text}
+.fr select.ch{flex:0 0 74px}
+.fr input[type=range]{flex:1;min-width:0;accent-color:var(--amber);height:30px}
+.seg{display:flex;gap:5px;flex:1}
+.seg .btn{flex:1;min-height:38px}
+.hint{font-size:10px;color:#80878c;line-height:1.45}
+.hint b{color:#c9ccc5;font-weight:700}
+.outrow{display:grid;grid-template-columns:auto minmax(0,1fr) 74px 58px;gap:6px;align-items:center;margin-bottom:8px}
+.outrow:last-child{margin-bottom:0}
+.outrow .tn{font-size:12px;color:#ecece4;font-weight:700;min-width:44px}
+.outrow select{height:38px;background:#0b0c0d;border:1px solid #33383e;border-radius:6px;padding:0 6px;font-size:12px;color:#e6e6de;min-width:0}
+.midist{font-size:11px;color:#9aa0a5;line-height:1.4}
+.midist.ok{color:var(--green)}
+.midist.bad{color:#ff8f80}
+.guide{font-size:10.5px;color:#9aa0a5;line-height:1.55}
+.guide p{margin-bottom:6px}
+.guide b{color:#e6e6de}
+.ver{font-size:9px;color:#555b60;text-align:center;margin-top:4px}
+@media (max-width:380px){
+  .logo b{font-size:19px} .logo span{letter-spacing:.16em}
+  .top{gap:5px} .tbtn{width:39px} .pill{padding:0 7px} .lcd{min-width:50px;font-size:17px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="logo"><b>SQ-2</b><span>ACIDPILOT</span></div>
+    <button class="pill" id="clkPill" aria-label="Clock"><i class="led" id="clkLed"></i><span class="src" id="clkSrc">EXT</span><span class="lcd" id="bpmTxt">----</span></button>
+    <button class="btn tbtn play" id="btnPlay" aria-label="Play/Stop">▶</button>
+    <button class="btn tbtn" id="btnPanic" aria-label="Panic" style="font-size:12px">ALL<br>OFF</button>
+    <button class="btn tbtn" id="btnSetup" aria-label="Setup">⚙</button>
+    <button class="btn tbtn" id="btnFs" aria-label="Schermo intero">⛶</button>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <section id="rack"></section>
+
+  <section>
+    <div class="sec-h"><span>SCENE</span><span class="inf" id="scnInf"></span></div>
+    <div class="scnwrap"><div class="row8" id="scnRow"></div><button class="btn" id="btnStore">STORE</button></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span>PATTERN</span><span class="inf" id="patInf"></span></div>
+    <div class="row8" id="patRow"></div>
+  </section>
+
+  <section class="tools">
+    <button class="btn" id="tLenDn">LEN−</button>
+    <div class="val" id="tLen">16</div>
+    <button class="btn" id="tLenUp">LEN+</button>
+    <button class="btn" id="tPage">PG1</button>
+    <button class="btn" id="tRotL">◀ROT</button>
+    <button class="btn" id="tRotR">ROT▶</button>
+    <button class="btn" id="tTrDn">TR−</button>
+    <button class="btn" id="tTrUp">TR+</button>
+    <button class="btn" id="tRnd">RND</button>
+    <button class="btn" id="tMut">MUT</button>
+    <button class="btn" id="tCpy">COPY</button>
+    <button class="btn" id="tPst">PASTE</button>
+    <button class="btn" id="tClr">CLEAR</button>
+    <button class="btn" id="tUndo">UNDO</button>
+    <button class="btn w2" id="tTrk">⚙ TRACCIA</button>
+  </section>
+
+  <section class="grid" id="grid"></section>
+
+  <section class="sedit">
+    <button class="btn" id="bRest">PAUSA</button>
+    <button class="btn" id="bAcc">ACCENT</button>
+    <button class="btn" id="bSld">SLIDE</button>
+    <div class="oct"><button class="btn" id="bOctDn">▼</button><span id="vOct">O2</span><button class="btn" id="bOctUp">▲</button></div>
+    <button class="btn" id="bRec">REC→</button>
+  </section>
+
+  <section class="kb" id="kb"></section>
+  <div class="ver">DocLAB · SQ-2 ACIDPILOT v1.0.0</div>
+</div>
+
+<!-- SETUP -->
+<div class="modal hidden" id="mSetup">
+  <div class="sheet">
+    <div class="shd"><b>SETUP</b><button class="btn" data-close="mSetup">✕</button></div>
+
+    <div class="blk">
+      <h4>MIDI</h4>
+      <div class="fr"><button class="btn" id="btnMidi" style="flex:1;min-height:40px">CONNETTI MIDI</button></div>
+      <div class="midist" id="midiStat">MIDI non collegato.</div>
+    </div>
+
+    <div class="blk">
+      <h4>CLOCK</h4>
+      <div class="fr"><span class="k">Sorgente</span><div class="seg" id="segSrc"><button class="btn" data-v="ext">ESTERNO</button><button class="btn" data-v="int">INTERNO</button></div></div>
+      <div class="fr" id="rowIn"><span class="k">Ingresso clock</span><select id="selIn"></select></div>
+      <div class="fr" id="rowBpm"><span class="k">BPM interno</span><input type="range" id="rngBpm" min="60" max="200" step="1"><span class="v" id="vBpm">150</span></div>
+      <div class="fr"><span class="k">Timing</span><div class="seg" id="segTiming"><button class="btn" data-v="direct">DIRETTO</button><button class="btn" data-v="predict">PREDITTIVO</button></div></div>
+      <p class="hint"><b>DIRETTO</b>: ogni nota parte all'arrivo del clock, il più sicuro. <b>PREDITTIVO</b>: le note vengono programmate 2 tick prima, così il jitter del telefono sparisce e puoi usare offset negativi (anticipo) per allineare le synth ai suoni dell'Electribe.</p>
+    </div>
+
+    <div class="blk">
+      <h4>USCITE</h4>
+      <div class="outrow"><span class="tn" id="oName0">TD-3</span><select id="selOut0"></select><select id="selCh0" class="ch"></select><button class="btn" id="btnTest0">TEST</button></div>
+      <div class="outrow"><span class="tn" id="oName1">B1</span><select id="selOut1"></select><select id="selCh1" class="ch"></select><button class="btn" id="btnTest1">TEST</button></div>
+      <p class="hint">Le due tracce possono usare due porte diverse (TD-3 e B1 via USB) o la stessa interfaccia su due canali.</p>
+    </div>
+
+    <div class="blk">
+      <h4>SEQUENCER</h4>
+      <div class="fr"><span class="k">Cambio pattern</span><div class="seg" id="segQuant"><button class="btn" data-v="end">FINE PATTERN</button><button class="btn" data-v="bar">BATTUTA</button></div></div>
+      <div class="fr"><span class="k">Scala RND / tasti</span><select id="selRoot" style="flex:0 0 74px"></select><select id="selScale"></select></div>
+    </div>
+
+    <div class="blk">
+      <h4>SISTEMA</h4>
+      <div class="fr"><span class="k">Schermo acceso</span><div class="seg" id="segWake"><button class="btn" data-v="1">SÌ</button><button class="btn" data-v="0">NO</button></div></div>
+      <div class="fr"><span class="k">Invio MIDI</span><div class="seg" id="segSched"><button class="btn" data-v="hw">TIMESTAMP</button><button class="btn" data-v="js">TIMER JS</button></div></div>
+      <p class="hint" style="margin-bottom:8px">Lascia <b>TIMESTAMP</b>. Passa a TIMER JS solo se un telefono suona note cortissime o le perde.</p>
+      <div class="fr"><button class="btn" id="btnExp" style="flex:1">ESPORTA</button><label class="btn" for="fileImp" style="flex:1">IMPORTA</label><button class="btn" id="btnReset" style="flex:1">RESET</button></div>
+    </div>
+
+    <div class="blk guide">
+      <h4>GUIDA RAPIDA</h4>
+      <p><b>1.</b> Apri l'app in <b>Chrome per Android</b> da un indirizzo <b>https</b> (es. GitHub Pages). Web MIDI non funziona da file locale né dentro le anteprime.</p>
+      <p><b>2.</b> Collega Electribe, TD-3 e B1 al telefono con un <b>hub USB OTG alimentato</b>. Ogni macchina appare come porta separata.</p>
+      <p><b>3.</b> Electribe: clock interno e trasmissione clock attiva sulla porta che usi (USB o MIDI OUT). Il play/stop dell'Electribe avvia e ferma l'app.</p>
+      <p><b>4.</b> TD-3 (SynthTool): imposta il canale MIDI; accent = velocity sopra 100; slide = note sovrapposte; se lo slide non si sente spegni <b>Multi Trigger</b>. B1 (Donner Control): canale MIDI e <b>Accent Velocity Threshold</b> sotto il valore ACC della traccia (default 127).</p>
+      <p><b>5.</b> Pattern: tocca = suona in coda + modifica; tieni premuto = modifica senza cambiare quello che suona. STORE + scena = salva i pattern correnti nella scena.</p>
+      <p><b>6.</b> Step: tocca per selezionare, ritocca per accendere/spegnere. Con <b>REC→</b> ogni tasto scrive la nota e passa allo step successivo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TRACK -->
+<div class="modal hidden" id="mTrack">
+  <div class="sheet">
+    <div class="shd"><b id="mtTitle">TRACCIA</b><button class="btn" data-close="mTrack">✕</button></div>
+    <div class="blk">
+      <h4>SUONO</h4>
+      <div class="fr"><span class="k">Nome</span><input type="text" id="mtName" maxlength="10"></div>
+      <div class="fr"><span class="k">Ottava base</span><select id="mtOct"></select></div>
+      <div class="fr"><span class="k">Velocity</span><input type="range" id="mtVel" min="1" max="127"><span class="v" id="mtVelV"></span></div>
+      <div class="fr"><span class="k">Velocity ACC</span><input type="range" id="mtAcc" min="1" max="127"><span class="v" id="mtAccV"></span></div>
+      <div class="fr"><span class="k">Gate</span><input type="range" id="mtGate" min="10" max="90"><span class="v" id="mtGateV"></span></div>
+    </div>
+    <div class="blk">
+      <h4>TEMPO</h4>
+      <div class="fr"><span class="k">Risoluzione</span><select id="mtRate"></select></div>
+      <div class="fr"><span class="k">Swing</span><input type="range" id="mtSwing" min="50" max="75"><span class="v" id="mtSwingV"></span></div>
+      <div class="fr"><span class="k">Offset</span><input type="range" id="mtOff" min="-40" max="60"><span class="v" id="mtOffV"></span></div>
+      <p class="hint">Offset positivo = ritarda la traccia (e assorbe il jitter). Negativo = anticipa: funziona solo in timing PREDITTIVO, fino a circa 2 tick.</p>
+    </div>
+    <div class="fr"><button class="btn" id="mtTest" style="flex:1;min-height:42px">TEST NOTA</button></div>
+  </div>
+</div>
+
+<input type="file" id="fileImp" accept=".json,application/json" class="vh">
+
+<script>
+(function(){
+'use strict';
+
+/* ================= costanti ================= */
+const VER='1.0.0', LS='doclab_sq2_acidpilot_v1';
+const MAXS=32, NP=8, NS=8, NT=2, OVL=6;
+const NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SCALES={'Dorico':[0,2,3,5,7,9,10],'Minore':[0,2,3,5,7,8,10],'Frigio':[0,1,3,5,7,8,10],'Min. armonica':[0,2,3,5,7,8,11],
+  'Frigio dom.':[0,1,4,5,7,8,10],'Pentatonica min.':[0,3,5,7,10],'Maggiore':[0,2,4,5,7,9,11],'Misolidio':[0,2,4,5,7,9,10],
+  'Cromatica':[0,1,2,3,4,5,6,7,8,9,10,11]};
+const RATES=[[3,'1/32'],[4,'1/16T'],[6,'1/16'],[8,'1/8T'],[12,'1/8']];
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const now=()=>performance.now();
+const noteName=m=>NN[((m%12)+12)%12]+(Math.floor(m/12)-1);
+function seeded(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ================= stato ================= */
+function mkStep(){return{on:false,n:0,a:false,s:false};}
+function mkPat(){return{len:16,st:Array.from({length:MAXS},mkStep)};}
+function mkTrack(i){return{name:i?'B1':'TD-3',out:{id:'',name:''},ch:i?1:0,oct:2,vel:80,acc:127,gate:50,swing:50,rate:6,off:0,
+  mute:false,tr:0,play:0,edit:0,pats:Array.from({length:NP},mkPat)};}
+function mkCfg(){return{src:'ext',inp:{id:'',name:''},bpm:150,timing:'direct',quant:'end',root:6,scale:'Dorico',wake:true,sched:'hw'};}
+function mkState(){
+  const s={v:1,sel:0,trs:[mkTrack(0),mkTrack(1)],scn:Array(NS).fill(null),cfg:mkCfg()};
+  genAcid(s.trs[0].pats[0],16,seeded(303),s.cfg);
+  genAcid(s.trs[1].pats[0],16,seeded(1981),s.cfg);
+  s.scn[0]={p:[0,0]};
+  return s;
+}
+function num(v,a,b,d){v=Number(v);return Number.isFinite(v)?clamp(Math.round(v),a,b):d;}
+function portSel(p){return(p&&typeof p==='object')?{id:String(p.id||''),name:String(p.name||'')}:{id:'',name:''};}
+function sanitize(o){
+  const s=mkState();
+  if(!o||typeof o!=='object') return s;
+  s.sel=num(o.sel,0,NT-1,0);
+  if(o.cfg&&typeof o.cfg==='object'){const c=o.cfg,x=s.cfg;
+    x.src=c.src==='int'?'int':'ext'; x.inp=portSel(c.inp); x.bpm=num(c.bpm,60,200,150);
+    x.timing=c.timing==='predict'?'predict':'direct'; x.quant=c.quant==='bar'?'bar':'end';
+    x.root=num(c.root,0,11,6); x.scale=SCALES[c.scale]?c.scale:'Dorico'; x.wake=c.wake!==false; x.sched=c.sched==='js'?'js':'hw';}
+  if(Array.isArray(o.trs)) for(let i=0;i<NT;i++){const t=o.trs[i]; if(!t||typeof t!=='object') continue; const x=s.trs[i];
+    x.name=String(t.name||x.name).slice(0,10)||x.name; x.out=portSel(t.out); x.ch=num(t.ch,0,15,x.ch); x.oct=num(t.oct,0,6,2);
+    x.vel=num(t.vel,1,127,80); x.acc=num(t.acc,1,127,127); x.gate=num(t.gate,10,90,50); x.swing=num(t.swing,50,75,50);
+    x.rate=RATES.some(r=>r[0]===t.rate)?t.rate:6; x.off=num(t.off,-40,60,0); x.mute=!!t.mute; x.tr=num(t.tr,-12,12,0);
+    x.play=num(t.play,0,NP-1,0); x.edit=num(t.edit,0,NP-1,0);
+    if(Array.isArray(t.pats)) for(let p=0;p<NP;p++){const sp=t.pats[p]; if(!sp||typeof sp!=='object') continue; const xp=x.pats[p];
+      xp.len=num(sp.len,1,MAXS,16);
+      if(Array.isArray(sp.st)) for(let k=0;k<MAXS;k++){const q=sp.st[k]; xp.st[k]=(q&&typeof q==='object')?{on:!!q.on,n:num(q.n,0,36,0),a:!!q.a,s:!!q.s}:mkStep();}}
+  }
+  if(Array.isArray(o.scn)) for(let k=0;k<NS;k++){const q=o.scn[k]; s.scn[k]=(q&&Array.isArray(q.p))?{p:[num(q.p[0],0,NP-1,0),num(q.p[1],0,NP-1,0)]}:null;}
+  return s;
+}
+let S;
+try{S=sanitize(JSON.parse(localStorage.getItem(LS)));}catch(e){S=mkState();}
+let saveTm=0;
+function dirty(){clearTimeout(saveTm);saveTm=setTimeout(saveNow,400);}
+function saveNow(){clearTimeout(saveTm);try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}
+
+/* ================= runtime ================= */
+function mkRtTrack(){return{next:0,lastSched:-1,held:null,queued:-1,hq:[],snd:new Map(),flash:-1e9,uiIdx:-1,uiBarK:null};}
+const RT={acc:null,inp:null,out:[null,null],running:false,tick:-1,
+  clk:{P:60000/(150*24),fa:0,phaseT:0,lastT:0,n:0,buf:[],bad:0,seen:-1e9,free:0},
+  trs:[mkRtTrack(),mkRtTrack()],
+  intT0:0,intM:0,worker:null,workerFail:false,iv:0,timerOn:false,
+  jsq:[],jsTm:0,wake:null,clip:null,undo:null,scene:-1,storeArm:false,
+  selStep:0,kbOct:0,rec:false,page:0,uiDirty:true,midiErr:'',bannerKind:'',
+  rackEls:[],scnEls:[],padEls:[],stEls:[],keyEls:[],phEl:null};
+
+/* ================= generatori ================= */
+function genAcid(p,len,rnd,cfg){
+  const sc=SCALES[cfg.scale]||SCALES.Dorico, root=cfg.root;
+  const pool=[]; for(let n=0;n<=24;n++){if(sc.indexOf(((n-root)%12+12)%12)>=0) pool.push(n);}
+  const lo=root, hi=root+12; let prev=lo;
+  p.len=clamp(len,1,MAXS);
+  for(let k=0;k<p.len;k++){
+    const s=p.st[k], strong=(k%4)===0;
+    s.on=k===0?true:(rnd()<(strong?0.85:0.66));
+    const r=rnd(); let n;
+    if(k===0||r<0.3) n=lo;
+    else if(r<0.42) n=hi;
+    else if(r<0.78){let i=pool.indexOf(prev); if(i<0)i=pool.indexOf(lo); const d=(rnd()<0.5?-1:1)*(1+Math.floor(rnd()*2)); n=pool[clamp(i+d,0,pool.length-1)];}
+    else n=pool[Math.floor(rnd()*pool.length)];
+    s.n=n; if(s.on) prev=n;
+    s.a=s.on&&rnd()<(strong?0.4:0.2);
+    s.s=s.on&&rnd()<0.2;
+  }
+}
+function mutate(p,rnd){
+  for(let k=0;k<p.len;k++){const s=p.st[k];
+    if(k>0&&rnd()<0.15) s.on=!s.on;
+    if(s.on){s.a=rnd()<0.25;s.s=rnd()<0.18;}}
+}
+
+/* ================= invio MIDI =================
+   Tutti i messaggi futuri passano da una coda ordinata e annullabile.
+   TIMESTAMP: il messaggio va al driver con il suo timestamp HZ ms prima della scadenza
+   (precisione hardware, ma STOP/MUTE possono ancora cancellarlo).
+   TIMER JS: il messaggio parte alla scadenza senza timestamp. */
+const HZ=8;
+function qWin(){return S.cfg.sched==='js'?0.5:HZ;}
+function rawSend(port,b,t,n){try{ if(S.cfg.sched!=='js'&&t>n+0.5) port.send(b,t); else port.send(b); }catch(e){}}
+function tx(port,b,t,i){
+  if(!port) return;
+  const n=now();
+  if(t>n+qWin()){qPush(port,b,t,i); return;}
+  qFlush(t,n);
+  rawSend(port,b,t,n);
+}
+function qPush(port,b,t,i){const q=RT.jsq; let k=q.length; while(k>0&&q[k-1].t>t) k--; q.splice(k,0,{port:port,b:b,t:t,i:i}); qArm();}
+function qFlush(lim,n){const q=RT.jsq; while(q.length&&q[0].t<=lim){const e=q.shift(); rawSend(e.port,e.b,e.t,n);}}
+function qArm(){clearTimeout(RT.jsTm); if(!RT.jsq.length) return; RT.jsTm=setTimeout(qPump,Math.max(0,RT.jsq[0].t-qWin()-now()-1));}
+function qPump(){const n=now(); qFlush(n+(S.cfg.sched==='js'?1.5:HZ),n); qArm();}
+function qCancelOns(i){RT.jsq=RT.jsq.filter(e=>!((i<0||e.i===i)&&(e.b[0]&0xF0)===0x90&&e.b[2]>0));}
+function qFlushNow(){const q=RT.jsq; RT.jsq=[]; clearTimeout(RT.jsTm); q.forEach(e=>{try{e.port.send(e.b);}catch(x){}});}
+function sndKey(port,ch,note){return port.id+'|'+ch+'|'+note;}
+function nOn(i,port,ch,note,vel,t){const rt=RT.trs[i]; tx(port,[0x90|ch,note,vel],t,i); rt.snd.set(sndKey(port,ch,note),{port:port,ch:ch,note:note,on:t,off:Infinity}); rt.flash=t;}
+function nOff(i,port,ch,note,t){const rt=RT.trs[i]; tx(port,[0x80|ch,note,0],t,i); const e=rt.snd.get(sndKey(port,ch,note)); if(e&&e.on<=t) e.off=Math.min(e.off,t);}
+function prune(rt){const lim=now()-100; for(const [k,e] of rt.snd){if(e.off<lim) rt.snd.delete(k);}}
+function releaseTrack(i){
+  const rt=RT.trs[i], n=now();
+  for(const e of rt.snd.values()){ if(e.off>n){const t=Math.max(n,e.on); tx(e.port,[0x80|e.ch,e.note,0],t,i); e.off=t;} }
+  rt.held=null;
+}
+
+/* ================= motore ================= */
+function intP(){return 60000/(S.cfg.bpm*24);}
+function tickP(){return S.cfg.src==='int'?intP():RT.clk.P;}
+function baseNote(tr){return 12*(tr.oct+1);}
+
+function resetTransport(){
+  for(let i=0;i<NT;i++){releaseTrack(i);const rt=RT.trs[i]; rt.next=0; rt.lastSched=-1; rt.hq.length=0; rt.uiIdx=-1;}
+  RT.tick=-1; RT.uiDirty=true;
+}
+function stopAll(){
+  const was=RT.running; RT.running=false; timerOff();
+  qCancelOns(-1); qFlushNow();
+  for(let i=0;i<NT;i++){releaseTrack(i); const rt=RT.trs[i]; rt.hq.length=0; rt.uiIdx=-1;
+    if(rt.queued>=0){const tr=S.trs[i]; if(tr.edit===tr.play) tr.edit=rt.queued; tr.play=rt.queued; rt.queued=-1; if(was) dirty();}}
+  RT.uiDirty=true;
+}
+function advanceTick(T,exact){
+  if(!RT.running) return;
+  RT.tick++;
+  schedTo(RT.tick,(exact||S.cfg.timing!=='predict')?0:2,T,exact?intP():RT.clk.P);
+}
+function schedTo(n,L,T,P){
+  for(let i=0;i<NT;i++){
+    const tr=S.trs[i], rt=RT.trs[i], tps=tr.rate;
+    let b=(Math.floor(rt.lastSched/tps)+1)*tps;
+    if(b<n) b=Math.ceil(n/tps)*tps;
+    for(;b<=n+L;b+=tps){playBoundary(i,b,T+(b-n)*P,P); rt.lastSched=b;}
+  }
+}
+function playBoundary(i,b,t,P){
+  const tr=S.trs[i], rt=RT.trs[i], tps=tr.rate;
+  if(rt.queued>=0&&((S.cfg.quant==='bar'&&b%96===0)||(S.cfg.quant==='end'&&rt.next===0))){
+    if(tr.edit===tr.play) tr.edit=rt.queued;
+    tr.play=rt.queued; rt.queued=-1; rt.next=0; RT.uiDirty=true; dirty();
+  }
+  const pat=tr.pats[tr.play];
+  if(rt.next>=pat.len) rt.next=0;
+  const idx=rt.next; rt.next=(idx+1)%pat.len;
+  const stepNo=Math.round(b/tps), dur=tps*P, sw=(tr.swing-50)/50*dur, odd=(stepNo&1)===1;
+  const tt=t+(odd?sw:0)+tr.off, len=odd?dur-sw:dur+sw;
+  rt.hq.push({i:idx,t:tt}); if(rt.hq.length>6) rt.hq.shift();
+  playStep(i,pat.st[idx],tt,len);
+}
+function playStep(i,s,t,len){
+  const tr=S.trs[i], rt=RT.trs[i], port=RT.out[i], ch=tr.ch, held=rt.held;
+  prune(rt);
+  if(tr.mute||!s.on||!port){
+    if(held){nOff(i,held.port,held.ch,held.note,Math.max(t,held.on+1)); rt.held=null;}
+    return;
+  }
+  const note=clamp(baseNote(tr)+s.n+tr.tr,0,127), vel=s.a?tr.acc:tr.vel;
+  let onT=t;
+  if(held&&held.port===port&&held.ch===ch&&held.note===note){
+    onT=held.on; /* slide sulla stessa nota = legatura, nessun retrigger */
+  }else{
+    nOn(i,port,ch,note,vel,t);
+    if(held) nOff(i,held.port,held.ch,held.note,t+OVL);
+  }
+  if(s.s){rt.held={port:port,ch:ch,note:note,on:onT};}
+  else{
+    const g=Math.max(5,Math.min(len*tr.gate/100,len-6));
+    nOff(i,port,ch,note,t+g); rt.held=null;
+  }
+}
+
+/* ---- clock esterno ---- */
+function onMidi(e){
+  const d=e.data; if(!d||!d.length) return;
+  const st=d[0]; if(st<0xF0) return;
+  if(S.cfg.src!=='ext') return;
+  const n=now(); let T=e.timeStamp;
+  if(!(T>0)||T>n+1||n-T>150) T=n;
+  switch(st){
+    case 0xF8: clockTick(T); break;
+    case 0xFA: resetTransport(); RT.running=true; RT.uiDirty=true;
+      /* pre-roll: se il clock gira già, il primo step viene programmato sul tick 0 previsto (serve per l'anticipo) */
+      if(S.cfg.timing==='predict'){const c=RT.clk; if(c.n>=8&&now()-c.seen<c.P*3) schedTo(-1,2,c.phaseT,c.P);}
+      break;
+    case 0xFB: RT.running=true; RT.uiDirty=true; break;
+    case 0xFC: if(RT.running) stopAll(); break;
+    case 0xF2: if(d.length>=3) spp(d[1]|(d[2]<<7)); break;
+  }
+}
+/* Stima di tempo e fase: regressione lineare sugli ultimi 24 tick (indice -> timestamp).
+   Filtra il jitter dei timestamp, ignora i tick arrivati a raffica e si riaggancia da solo
+   se il tempo dell'Electribe cambia di colpo. */
+function clkFit(c){
+  const b=c.buf, N=b.length; let mx=0,my=0;
+  for(let k=0;k<N;k++){mx+=b[k][0]; my+=b[k][1];} mx/=N; my/=N;
+  let sxy=0,sxx=0; for(let k=0;k<N;k++){const dx=b[k][0]-mx; sxy+=dx*(b[k][1]-my); sxx+=dx*dx;}
+  if(sxx>0){const P=sxy/sxx; if(P>8&&P<90){c.P=P; c.fa=my-P*mx;}}
+}
+function clockTick(T){
+  const c=RT.clk; c.seen=now(); c.free++;
+  const idx=c.free, dt=T-c.lastT, fitted=c.buf.length>=8;
+  let use=true;
+  if(c.lastT>0&&(dt>=160||dt<-1)){c.buf.length=0; c.bad=0;}            /* clock ripartito dopo una pausa */
+  else if(fitted&&dt<=2) use=false;                                       /* tick a raffica: timestamp inutilizzabile */
+  else if(fitted&&Math.abs(T-(c.fa+c.P*idx))>c.P*0.5){                    /* fuori modello */
+    c.bad++; use=false;
+    if(c.bad>=3){c.buf.length=0; c.bad=0; use=true;}                      /* cambio di tempo vero: riaggancio */
+  }else c.bad=0;
+  if(use){c.buf.push([idx,T]); if(c.buf.length>24) c.buf.shift(); c.lastT=T; if(c.buf.length>=3) clkFit(c);}
+  c.phaseT=c.buf.length>=8?(c.fa+c.P*idx):(use?T:c.phaseT+c.P);
+  c.n=c.buf.length;
+  if(RT.jsq.length) qPump();
+  if(RT.running) advanceTick(c.phaseT,false);
+}
+function spp(pos){
+  for(let i=0;i<NT;i++) releaseTrack(i);
+  RT.tick=pos*6-1;
+  for(let i=0;i<NT;i++){const tr=S.trs[i], rt=RT.trs[i], len=tr.pats[tr.play].len;
+    rt.lastSched=RT.tick; rt.next=Math.ceil((RT.tick+1)/tr.rate)%len; rt.hq.length=0;}
+  RT.uiDirty=true;
+}
+
+/* ---- clock interno ---- */
+function timerOn(){
+  if(RT.timerOn) return; RT.timerOn=true;
+  if(!RT.worker&&!RT.workerFail){
+    try{
+      const src='var iv=0;onmessage=function(e){if(e.data===1){if(!iv)iv=setInterval(function(){postMessage(0)},5)}else{clearInterval(iv);iv=0}}';
+      RT.worker=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+      RT.worker.onmessage=intPump;
+      RT.worker.onerror=function(){RT.worker=null;RT.workerFail=true; if(RT.timerOn){RT.timerOn=false;timerOn();}};
+    }catch(e){RT.worker=null;RT.workerFail=true;}
+  }
+  if(RT.worker) RT.worker.postMessage(1); else RT.iv=setInterval(intPump,5);
+}
+function timerOff(){RT.timerOn=false; if(RT.worker){try{RT.worker.postMessage(0);}catch(e){}} if(RT.iv){clearInterval(RT.iv);RT.iv=0;}}
+function intStart(){resetTransport(); RT.running=true; RT.intM=0; RT.intT0=now()+30; timerOn(); RT.uiDirty=true;}
+function intPump(){
+  if(RT.jsq.length) qPump();
+  if(!RT.running||S.cfg.src!=='int') return;
+  const P=intP(), n=now();
+  let nextT=RT.intT0+RT.intM*P;
+  if(n-nextT>150){RT.intT0=n+5-RT.intM*P; nextT=n+5;}
+  let g=0;
+  while(nextT<=n+40&&g++<64){advanceTick(nextT,true); RT.intM++; nextT=RT.intT0+RT.intM*P;}
+}
+function setBpm(v){
+  const old=intP(); S.cfg.bpm=clamp(Math.round(v),60,200);
+  if(RT.running&&S.cfg.src==='int'){const nextT=RT.intT0+RT.intM*old; RT.intT0=nextT-RT.intM*intP();}
+  dirty();
+}
+
+/* ---- note di prova / panic ---- */
+function preview(i,n,acc){
+  if(RT.running) return;
+  const tr=S.trs[i], port=RT.out[i]; if(!port) return;
+  const note=clamp(baseNote(tr)+n+tr.tr,0,127), t=now();
+  nOn(i,port,tr.ch,note,acc?tr.acc:tr.vel,t); nOff(i,port,tr.ch,note,t+180);
+}
+function testNote(i){
+  const tr=S.trs[i], port=RT.out[i];
+  if(!port){flashBanner('Traccia '+tr.name+': nessuna uscita MIDI selezionata.','err'); return;}
+  const note=clamp(baseNote(tr)+12,0,127), t=now();
+  nOn(i,port,tr.ch,note,tr.acc,t); nOff(i,port,tr.ch,note,t+250);
+}
+function panic(){
+  qCancelOns(-1); qFlushNow();
+  for(let i=0;i<NT;i++) releaseTrack(i);
+  const done=new Set(), n=now();
+  for(let i=0;i<NT;i++){const p=RT.out[i], ch=S.trs[i].ch; if(!p) continue; const k=p.id+'|'+ch; if(done.has(k)) continue; done.add(k);
+    for(const t of [0,n+90]){ for(let m=0;m<128;m++) tx(p,[0x80|ch,m,0],t); tx(p,[0xB0|ch,123,0],t); }}
+  if(RT.running){for(let i=0;i<NT;i++) RT.trs[i].held=null;}
+}
+
+/* ================= MIDI access ================= */
+function listIn(){return RT.acc?Array.from(RT.acc.inputs.values()):[];}
+function listOut(){return RT.acc?Array.from(RT.acc.outputs.values()):[];}
+function findPort(list,sel){
+  if(!sel||(!sel.id&&!sel.name)) return null;
+  let p=list.find(x=>x.id===sel.id&&x.state!=='disconnected');
+  if(!p&&sel.name) p=list.find(x=>x.name===sel.name&&x.state!=='disconnected');
+  return p||null;
+}
+function refreshPorts(){
+  const outs=listOut();
+  for(let i=0;i<NT;i++){const p=findPort(outs,S.trs[i].out); if(RT.out[i]&&RT.out[i]!==p) releaseTrack(i); RT.out[i]=p;}
+  const ins=listIn(), p=findPort(ins,S.cfg.inp);
+  ins.forEach(x=>{if(x!==p&&x.onmidimessage===onMidi) x.onmidimessage=null;});
+  if(p&&p.onmidimessage!==onMidi) p.onmidimessage=onMidi;
+  RT.inp=p;
+}
+function autoPick(){
+  const ins=listIn(), outs=listOut();
+  if(!S.cfg.inp.id&&!S.cfg.inp.name){const p=ins.find(x=>/electribe|e2s/i.test(x.name)); if(p){S.cfg.inp={id:p.id,name:p.name};dirty();}}
+  const re=[/td-?3/i,/\bb1\b|donner|essential/i];
+  for(let i=0;i<NT;i++){const t=S.trs[i]; if(!t.out.id&&!t.out.name){const p=outs.find(x=>re[i].test(x.name)); if(p){t.out={id:p.id,name:p.name};dirty();}}}
+}
+let portTm=0;
+function onPortsChange(){clearTimeout(portTm); portTm=setTimeout(()=>{refreshPorts(); fillPortSelects(); updRack(); updStatus();},120);}
+async function initMidi(){
+  RT.midiErr='';
+  if(!window.isSecureContext){RT.midiErr='Web MIDI richiede HTTPS: apri l\'app da GitHub Pages (o localhost), non da file locale.'; updStatus(); return;}
+  if(!navigator.requestMIDIAccess){RT.midiErr='Questo browser non ha Web MIDI: usa Chrome per Android.'; updStatus(); return;}
+  try{
+    const acc=await navigator.requestMIDIAccess({sysex:false});
+    RT.acc=acc; acc.onstatechange=onPortsChange;
+    autoPick(); refreshPorts(); fillPortSelects(); updRack();
+  }catch(e){RT.midiErr='Accesso MIDI negato ('+((e&&e.name)||'errore')+'). Consenti "Dispositivi MIDI" nelle impostazioni sito di Chrome e riprova.';}
+  updStatus();
+}
+
+/* ================= UI ================= */
+function curTr(){return S.trs[S.sel];}
+function editPat(){const t=curTr(); return t.pats[t.edit];}
+function curStep(){return editPat().st[RT.selStep];}
+function patHas(p){for(let k=0;k<p.len;k++) if(p.st[k].on) return true; return false;}
+
+let bannerTm=0, bannerFlash=null;
+function flashBanner(msg,kind){bannerFlash={msg:msg,kind:kind||'err'}; clearTimeout(bannerTm); bannerTm=setTimeout(()=>{bannerFlash=null;updStatus();},3500); updStatus();}
+function updStatus(){
+  const b=$('banner'); let msg='', kind='';
+  if(bannerFlash){msg=bannerFlash.msg; kind=bannerFlash.kind;}
+  else if(RT.midiErr){msg=RT.midiErr; kind='err';}
+  else if(!RT.acc){msg='TOCCA QUI PER COLLEGARE IL MIDI'; kind='cta';}
+  else if(S.cfg.src==='ext'&&!RT.inp){msg='Nessun ingresso clock: apri SETUP e scegli l\'Electribe (o passa al clock INTERNO).'; kind='info';}
+  else if(!RT.out[0]&&!RT.out[1]){msg='Nessuna uscita MIDI: apri SETUP e assegna TD-3 e B1.'; kind='info';}
+  RT.bannerKind=kind;
+  b.textContent=msg; b.className='banner '+kind+(msg?'':' hidden');
+  const ms=$('midiStat');
+  if(RT.acc){const ni=listIn().filter(x=>x.state!=='disconnected').length, no=listOut().filter(x=>x.state!=='disconnected').length;
+    ms.textContent='MIDI attivo · '+ni+' ingressi · '+no+' uscite'; ms.className='midist ok'; $('btnMidi').textContent='RILEGGI PORTE';}
+  else{ms.textContent=RT.midiErr||'MIDI non collegato.'; ms.className='midist'+(RT.midiErr?' bad':'');}
+}
+
+function buildRack(){
+  const r=$('rack'); r.innerHTML=''; RT.rackEls=[];
+  for(let i=0;i<NT;i++){
+    const d=document.createElement('div'); d.className='trk';
+    let bar=''; for(let k=0;k<MAXS;k++) bar+='<i'+(k%4===0?' class="bt"':'')+'></i>';
+    d.innerHTML='<div class="tsel"><i class="oled"></i><div class="tinfo"><div class="tname"></div><div class="tport"></div></div></div>'+
+      '<div class="tpat"><span class="pn"></span><span class="q"></span></div>'+
+      '<button class="btn mute">MUTE</button>'+
+      '<div class="ttr"><button class="btn" data-d="-1">−</button><span class="tv"></span><button class="btn" data-d="1">+</button></div>'+
+      '<div class="tbar">'+bar+'</div>';
+    d.addEventListener('click',e=>{
+      const b=e.target.closest('button');
+      if(b&&b.classList.contains('mute')){toggleMute(i);return;}
+      if(b&&b.dataset.d){setTrans(i,S.trs[i].tr+Number(b.dataset.d));return;}
+      if(S.sel!==i){S.sel=i; RT.selStep=clamp(RT.selStep,0,editPat().len-1); RT.page=Math.floor(RT.selStep/16); syncKbOct(); dirty(); renderEditor();}
+    });
+    r.appendChild(d);
+    RT.rackEls.push({root:d,name:d.querySelector('.tname'),port:d.querySelector('.tport'),pn:d.querySelector('.pn'),q:d.querySelector('.q'),
+      mute:d.querySelector('.mute'),tv:d.querySelector('.tv'),bar:Array.from(d.querySelectorAll('.tbar i')),led:d.querySelector('.oled'),ledOn:false});
+  }
+}
+function updRack(){
+  for(let i=0;i<NT;i++){
+    const t=S.trs[i], e=RT.rackEls[i], rt=RT.trs[i], p=RT.out[i];
+    e.root.classList.toggle('sel',S.sel===i);
+    e.name.textContent=t.name;
+    e.port.textContent='CH'+(t.ch+1)+' · '+(p?p.name:(t.out.name?'ASSENTE: '+t.out.name:'NESSUNA USCITA'));
+    e.port.classList.toggle('warn',!p);
+    e.pn.textContent='P'+(t.play+1);
+    e.q.textContent=rt.queued>=0?' →P'+(rt.queued+1):'';
+    e.mute.classList.toggle('on',t.mute);
+    e.tv.textContent=(t.tr>0?'+':'')+t.tr;
+    const len=t.pats[t.play].len;
+    e.bar.forEach((x,k)=>{x.style.display=k<len?'':'none';});
+    rt.uiBarK=null; e.bar.forEach(x=>x.classList.remove('on')); updBar(i);
+  }
+}
+function updBar(i){
+  const e=RT.rackEls[i], rt=RT.trs[i], idx=rt.uiIdx;
+  if(rt.uiBarK!==null&&e.bar[rt.uiBarK]) e.bar[rt.uiBarK].classList.remove('on');
+  if(idx>=0&&e.bar[idx]){e.bar[idx].classList.add('on'); rt.uiBarK=idx;} else rt.uiBarK=null;
+}
+function toggleMute(i){const t=S.trs[i]; t.mute=!t.mute; if(t.mute){qCancelOns(i); releaseTrack(i);} dirty(); updRack();}
+function setTrans(i,v){S.trs[i].tr=clamp(v,-12,12); dirty(); updRack();}
+
+function buildScenes(){
+  const r=$('scnRow'); r.innerHTML=''; RT.scnEls=[];
+  for(let k=0;k<NS;k++){const b=document.createElement('button'); b.className='btn scn'; b.textContent='S'+(k+1);
+    b.addEventListener('click',()=>scnTap(k)); r.appendChild(b); RT.scnEls.push(b);}
+  $('btnStore').addEventListener('click',()=>{RT.storeArm=!RT.storeArm; updScenes();});
+}
+function updScenes(){
+  RT.scnEls.forEach((b,k)=>{b.classList.toggle('has',!!S.scn[k]); b.classList.toggle('act',RT.scene===k); b.classList.toggle('arm',RT.storeArm);});
+  $('btnStore').classList.toggle('on',RT.storeArm);
+  const sc=RT.scene>=0&&S.scn[RT.scene]; $('scnInf').textContent=sc?('S'+(RT.scene+1)+' · '+S.scn[RT.scene].p.map(x=>'P'+(x+1)).join(' ')):'';
+}
+function setPlay(i,k){
+  const tr=S.trs[i], rt=RT.trs[i];
+  if(RT.running){ rt.queued=(tr.play===k)?-1:k; }
+  else{ tr.play=k; rt.queued=-1; rt.next=0; }
+}
+function scnTap(k){
+  if(RT.storeArm){
+    S.scn[k]={p:S.trs.map((t,i)=>RT.trs[i].queued>=0?RT.trs[i].queued:t.play)};
+    RT.storeArm=false; RT.scene=k; dirty(); updScenes(); return;
+  }
+  const sc=S.scn[k]; if(!sc){flashBanner('Scena vuota: premi STORE e poi la scena per salvarla.','info'); return;}
+  for(let i=0;i<NT;i++){setPlay(i,sc.p[i]); S.trs[i].edit=sc.p[i];}
+  RT.scene=k; dirty(); renderEditor(); updRack(); updScenes();
+}
+
+function buildPads(){
+  const r=$('patRow'); r.innerHTML=''; RT.padEls=[];
+  for(let k=0;k<NP;k++){
+    const b=document.createElement('button'); b.className='btn pad'; b.textContent=String(k+1);
+    let lp=0, fired=false;
+    b.addEventListener('pointerdown',()=>{fired=false; clearTimeout(lp); lp=setTimeout(()=>{fired=true; padEdit(k);},450);});
+    b.addEventListener('pointerup',()=>{clearTimeout(lp); if(!fired) padTap(k);});
+    b.addEventListener('pointerleave',()=>clearTimeout(lp));
+    b.addEventListener('pointercancel',()=>clearTimeout(lp));
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+    r.appendChild(b); RT.padEls.push(b);
+  }
+}
+function padTap(k){const tr=curTr(); setPlay(S.sel,k); tr.edit=k; afterPatSel();}
+function padEdit(k){const tr=curTr(); tr.edit=k; if(navigator.vibrate){try{navigator.vibrate(15);}catch(e){}} afterPatSel();}
+function afterPatSel(){RT.selStep=clamp(RT.selStep,0,editPat().len-1); RT.page=Math.floor(RT.selStep/16); syncKbOct(); dirty(); renderEditor(); updRack();}
+function updPads(){
+  const tr=curTr(), rt=RT.trs[S.sel];
+  RT.padEls.forEach((b,k)=>{b.classList.toggle('play',tr.play===k); b.classList.toggle('queued',rt.queued===k);
+    b.classList.toggle('edit',tr.edit===k); b.classList.toggle('has',patHas(tr.pats[k]));});
+}
+
+function buildGrid(){
+  const g=$('grid'); g.innerHTML=''; RT.stEls=[];
+  for(let j=0;j<16;j++){
+    const b=document.createElement('button'); b.className='st'+(j%4===0?' bt':'');
+    b.innerHTML='<span class="no"></span><span class="nt"></span><span class="fx"><b class="a">A</b><b class="s">S</b></span>';
+    b.addEventListener('click',()=>stepTap(j));
+    g.appendChild(b); RT.stEls.push({el:b,no:b.querySelector('.no'),nt:b.querySelector('.nt')});
+  }
+}
+function stepTap(j){
+  const k=RT.page*16+j, p=editPat(); if(k>=p.len) return;
+  if(RT.selStep===k){snapUndo(); p.st[k].on=!p.st[k].on; dirty();}
+  else{RT.selStep=k; syncKbOct();}
+  renderGrid(); renderSEdit(); renderKb(); updPads();
+}
+function renderGrid(){
+  const t=curTr(), p=editPat(), base=baseNote(t);
+  if(p.len<=16) RT.page=0;
+  const off=RT.page*16;
+  RT.stEls.forEach((o,j)=>{const k=off+j, s=p.st[k], inLen=k<p.len, el=o.el;
+    el.classList.toggle('out',!inLen); el.classList.toggle('on',inLen&&s.on);
+    el.classList.toggle('acc',s.on&&s.a); el.classList.toggle('sld',s.on&&s.s);
+    el.classList.toggle('sel',k===RT.selStep); el.classList.remove('ph');
+    o.no.textContent=String(k+1); o.nt.textContent=s.on?noteName(base+s.n):'·';});
+  RT.phEl=null; updPlayhead();
+  $('tLen').textContent=String(p.len);
+  $('tPage').textContent='PG'+(RT.page+1); $('tPage').classList.toggle('dim',p.len<=16);
+  const s=curStep();
+  $('patInf').textContent=t.name+' · P'+(t.edit+1)+' · STEP '+String(RT.selStep+1).padStart(2,'0')+' '+(s.on?noteName(base+s.n)+(s.a?' ACC':'')+(s.s?' SLD':''):'PAUSA');
+}
+function updPlayhead(){
+  const t=curTr(), rt=RT.trs[S.sel]; let el=null;
+  if(t.edit===t.play&&rt.uiIdx>=0){const j=rt.uiIdx-RT.page*16; if(j>=0&&j<16) el=RT.stEls[j].el;}
+  if(el!==RT.phEl){if(RT.phEl) RT.phEl.classList.remove('ph'); if(el) el.classList.add('ph'); RT.phEl=el;}
+}
+function syncKbOct(){const s=curStep(); RT.kbOct=clamp(Math.floor(s.n/12),0,2);}
+function renderSEdit(){
+  const s=curStep(), t=curTr();
+  $('bRest').classList.toggle('on',!s.on); $('bAcc').classList.toggle('on',s.a); $('bSld').classList.toggle('on',s.s);
+  $('bRec').classList.toggle('on',RT.rec); $('vOct').textContent='O'+(t.oct+RT.kbOct);
+}
+function buildKb(){
+  const kb=$('kb'); kb.innerHTML=''; RT.keyEls=[];
+  const whites=[[0,'C'],[2,'D'],[4,'E'],[5,'F'],[7,'G'],[9,'A'],[11,'B'],[12,'C']];
+  const blacks=[[1,'C#',0],[3,'D#',1],[6,'F#',3],[8,'G#',4],[10,'A#',5]];
+  whites.forEach(w=>{const d=document.createElement('div'); d.className='wk'; d.textContent=w[1]; d.dataset.v=w[0]; kb.appendChild(d); RT.keyEls.push({el:d,v:w[0]});});
+  blacks.forEach(b=>{const d=document.createElement('div'); d.className='bk'; d.textContent=b[1]; d.dataset.v=b[0];
+    d.style.left='calc('+((b[2]+1)/8)+' * (100% + 3px) - 1.5px - 4.5%)'; kb.appendChild(d); RT.keyEls.push({el:d,v:b[0]});});
+  kb.addEventListener('pointerdown',e=>{const k=e.target.closest('.wk,.bk'); if(!k) return; e.preventDefault(); keyPress(Number(k.dataset.v));});
+  kb.addEventListener('contextmenu',e=>e.preventDefault());
+}
+function renderKb(){
+  const s=curStep(), sc=SCALES[S.cfg.scale]||SCALES.Dorico, root=S.cfg.root;
+  RT.keyEls.forEach(o=>{const pc=o.v%12;
+    o.el.classList.toggle('sc',sc.indexOf((pc-root+12)%12)>=0);
+    o.el.classList.toggle('act',s.on&&s.n===RT.kbOct*12+o.v);});
+}
+function keyPress(v){
+  const p=editPat(), s=p.st[RT.selStep];
+  snapUndo();
+  s.n=clamp(RT.kbOct*12+v,0,36); s.on=true;
+  preview(S.sel,s.n,s.a);
+  if(RT.rec) advanceSel();
+  dirty(); renderGrid(); renderSEdit(); renderKb(); updPads();
+}
+function advanceSel(){const p=editPat(); RT.selStep=(RT.selStep+1)%p.len; RT.page=Math.floor(RT.selStep/16);}
+function renderEditor(){renderGrid(); renderSEdit(); renderKb(); updPads();}
+
+/* ---- undo ---- */
+function snapUndo(){const t=curTr(); RT.undo={t:S.sel,p:t.edit,d:JSON.stringify(t.pats[t.edit])};}
+function doUndo(){
+  const u=RT.undo; if(!u){flashBanner('Niente da annullare.','info'); return;}
+  const tr=S.trs[u.t], cur=JSON.stringify(tr.pats[u.p]);
+  tr.pats[u.p]=sanitizePat(JSON.parse(u.d)); RT.undo={t:u.t,p:u.p,d:cur};
+  RT.selStep=clamp(RT.selStep,0,editPat().len-1); dirty(); renderEditor(); updRack();
+}
+function sanitizePat(sp){const xp=mkPat(); xp.len=num(sp.len,1,MAXS,16);
+  if(Array.isArray(sp.st)) for(let k=0;k<MAXS;k++){const q=sp.st[k]; if(q) xp.st[k]={on:!!q.on,n:num(q.n,0,36,0),a:!!q.a,s:!!q.s};}
+  return xp;}
+
+/* ---- tools ---- */
+let clrArm=0, resetArm=0;
+function bindTools(){
+  $('tLenDn').addEventListener('click',()=>setLen(editPat().len-1));
+  $('tLenUp').addEventListener('click',()=>setLen(editPat().len+1));
+  $('tPage').addEventListener('click',()=>{if(editPat().len>16){RT.page=RT.page?0:1; renderGrid();}});
+  $('tRotL').addEventListener('click',()=>rot(-1));
+  $('tRotR').addEventListener('click',()=>rot(1));
+  $('tTrDn').addEventListener('click',()=>transPat(-1));
+  $('tTrUp').addEventListener('click',()=>transPat(1));
+  $('tRnd').addEventListener('click',()=>{snapUndo(); const p=editPat(); genAcid(p,p.len,Math.random,S.cfg); syncKbOct(); dirty(); renderEditor();});
+  $('tMut').addEventListener('click',()=>{snapUndo(); mutate(editPat(),Math.random); dirty(); renderEditor();});
+  $('tCpy').addEventListener('click',()=>{RT.clip=JSON.stringify(editPat()); flashBanner('Pattern copiato.','info');});
+  $('tPst').addEventListener('click',()=>{if(!RT.clip){flashBanner('Clipboard vuota: premi COPY su un pattern.','info');return;}
+    snapUndo(); const t=curTr(); t.pats[t.edit]=sanitizePat(JSON.parse(RT.clip)); RT.selStep=clamp(RT.selStep,0,editPat().len-1); syncKbOct(); dirty(); renderEditor(); updRack();});
+  $('tClr').addEventListener('click',()=>{const b=$('tClr');
+    if(!clrArm){b.textContent='SICURO?'; b.classList.add('warn'); clrArm=setTimeout(()=>{clrArm=0;b.textContent='CLEAR';b.classList.remove('warn');},2200); return;}
+    clearTimeout(clrArm); clrArm=0; b.textContent='CLEAR'; b.classList.remove('warn');
+    snapUndo(); const t=curTr(), len=editPat().len; t.pats[t.edit]=mkPat(); t.pats[t.edit].len=len; dirty(); renderEditor(); updRack();});
+  $('tUndo').addEventListener('click',doUndo);
+  $('tTrk').addEventListener('click',openTrack);
+  $('bRest').addEventListener('click',()=>{snapUndo(); const s=curStep();
+    if(RT.rec){s.on=false; advanceSel(); syncKbOct();} else s.on=!s.on;
+    dirty(); renderEditor();});
+  $('bAcc').addEventListener('click',()=>{snapUndo(); const s=curStep(); s.a=!s.a; if(s.a) s.on=true; dirty(); renderEditor();});
+  $('bSld').addEventListener('click',()=>{snapUndo(); const s=curStep(); s.s=!s.s; if(s.s) s.on=true; dirty(); renderEditor();});
+  $('bRec').addEventListener('click',()=>{RT.rec=!RT.rec; renderSEdit();});
+  $('bOctDn').addEventListener('click',()=>octShift(-1));
+  $('bOctUp').addEventListener('click',()=>octShift(1));
+}
+function setLen(v){const p=editPat(); p.len=clamp(v,1,MAXS); if(RT.selStep>=p.len) RT.selStep=p.len-1; RT.page=Math.floor(RT.selStep/16); syncKbOct(); dirty(); renderEditor(); updRack();}
+function rot(d){snapUndo(); const p=editPat(), L=p.len, a=p.st.slice(0,L); for(let k=0;k<L;k++) p.st[k]=a[((k-d)%L+L)%L]; dirty(); renderEditor();}
+function transPat(d){const p=editPat();
+  for(let k=0;k<p.len;k++){const s=p.st[k]; if(s.on&&(s.n+d<0||s.n+d>36)){flashBanner('Trasposizione fuori range.','info'); return;}}
+  snapUndo(); for(let k=0;k<p.len;k++){const s=p.st[k]; if(s.on) s.n+=d;} syncKbOct(); dirty(); renderEditor();}
+function octShift(d){
+  const s=curStep(), nk=clamp(RT.kbOct+d,0,2);
+  if(s.on&&s.n+d*12>=0&&s.n+d*12<=36){snapUndo(); s.n+=d*12; RT.kbOct=clamp(Math.floor(s.n/12),0,2); preview(S.sel,s.n,s.a); dirty();}
+  else RT.kbOct=nk;
+  renderEditor();
+}
+
+/* ---- modali ---- */
+function openModal(id){$(id).classList.remove('hidden');}
+function closeModal(id){$(id).classList.add('hidden');}
+function bindModals(){
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
+  ['mSetup','mTrack'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target.id===id) closeModal(id);}));
+}
+function segSet(id,val){$(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val)));}
+function segBind(id,fn){$(id).addEventListener('click',e=>{const b=e.target.closest('button'); if(b&&b.dataset.v!==undefined) fn(b.dataset.v);});}
+function fillSelect(sel,list,cur,missing){
+  let h='<option value="">— nessuna —</option>'; let found=false;
+  list.forEach(p=>{const s=cur&&p===cur; if(s) found=true; h+='<option value="'+escAttr(p.id)+'"'+(s?' selected':'')+'>'+escHtml(p.name||p.id)+'</option>';});
+  if(!found&&missing&&missing.name) h+='<option value="__miss" selected>(assente) '+escHtml(missing.name)+'</option>';
+  sel.innerHTML=h;
+}
+function escHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function escAttr(s){return escHtml(s);}
+function fillPortSelects(){
+  const ins=listIn().filter(x=>x.state!=='disconnected'), outs=listOut().filter(x=>x.state!=='disconnected');
+  fillSelect($('selIn'),ins,RT.inp,S.cfg.inp);
+  for(let i=0;i<NT;i++){fillSelect($('selOut'+i),outs,RT.out[i],S.trs[i].out); $('selCh'+i).value=String(S.trs[i].ch); $('oName'+i).textContent=S.trs[i].name;}
+}
+function bindSetup(){
+  $('btnSetup').addEventListener('click',()=>{fillSetup(); openModal('mSetup');});
+  $('btnMidi').addEventListener('click',()=>initMidi());
+  segBind('segSrc',v=>{if(S.cfg.src===v) return; stopAll(); S.cfg.src=v; dirty(); fillSetup(); updStatus();});
+  $('selIn').addEventListener('change',e=>{const v=e.target.value; if(v==='__miss') return;
+    const p=listIn().find(x=>x.id===v); S.cfg.inp=p?{id:p.id,name:p.name}:{id:'',name:''}; refreshPorts(); dirty(); updStatus();});
+  $('rngBpm').addEventListener('input',e=>{setBpm(Number(e.target.value)); $('vBpm').textContent=S.cfg.bpm;});
+  segBind('segTiming',v=>{S.cfg.timing=v; dirty(); segSet('segTiming',v);});
+  for(let i=0;i<NT;i++){
+    let h=''; for(let c=0;c<16;c++) h+='<option value="'+c+'">CH '+(c+1)+'</option>'; $('selCh'+i).innerHTML=h;
+    $('selOut'+i).addEventListener('change',e=>{const v=e.target.value; if(v==='__miss') return;
+      releaseTrack(i); const p=listOut().find(x=>x.id===v); S.trs[i].out=p?{id:p.id,name:p.name}:{id:'',name:''}; refreshPorts(); dirty(); updRack(); updStatus();});
+    $('selCh'+i).addEventListener('change',e=>{releaseTrack(i); S.trs[i].ch=clamp(Number(e.target.value)|0,0,15); dirty(); updRack();});
+    $('btnTest'+i).addEventListener('click',()=>testNote(i));
+  }
+  segBind('segQuant',v=>{S.cfg.quant=v; dirty(); segSet('segQuant',v);});
+  let rh=''; NN.forEach((n,k)=>{rh+='<option value="'+k+'">'+n+'</option>';}); $('selRoot').innerHTML=rh;
+  let sh=''; Object.keys(SCALES).forEach(k=>{sh+='<option value="'+escAttr(k)+'">'+escHtml(k)+'</option>';}); $('selScale').innerHTML=sh;
+  $('selRoot').addEventListener('change',e=>{S.cfg.root=clamp(Number(e.target.value)|0,0,11); dirty(); renderKb();});
+  $('selScale').addEventListener('change',e=>{if(SCALES[e.target.value]) S.cfg.scale=e.target.value; dirty(); renderKb();});
+  segBind('segWake',v=>{S.cfg.wake=v==='1'; dirty(); segSet('segWake',S.cfg.wake?'1':'0'); if(S.cfg.wake) wakeOn(); else wakeOff();});
+  segBind('segSched',v=>{S.cfg.sched=v; dirty(); segSet('segSched',v); qPump();});
+  $('btnExp').addEventListener('click',exportJson);
+  $('fileImp').addEventListener('change',importJson);
+  $('btnReset').addEventListener('click',()=>{const b=$('btnReset');
+    if(!resetArm){b.textContent='SICURO?'; b.classList.add('warn'); resetArm=setTimeout(()=>{resetArm=0;b.textContent='RESET';b.classList.remove('warn');},2500); return;}
+    clearTimeout(resetArm); resetArm=0; b.textContent='RESET'; b.classList.remove('warn');
+    stopAll(); const keep={inp:S.cfg.inp,outs:S.trs.map(t=>t.out),chs:S.trs.map(t=>t.ch)};
+    S=mkState(); S.cfg.inp=keep.inp; S.trs.forEach((t,i)=>{t.out=keep.outs[i]; t.ch=keep.chs[i];});
+    afterLoad(); flashBanner('Reset fatto (routing MIDI mantenuto).','info');});
+}
+function fillSetup(){
+  fillPortSelects();
+  segSet('segSrc',S.cfg.src); $('rowIn').classList.toggle('hidden',S.cfg.src!=='ext'); $('rowBpm').classList.toggle('hidden',S.cfg.src!=='int');
+  $('rngBpm').value=S.cfg.bpm; $('vBpm').textContent=S.cfg.bpm;
+  segSet('segTiming',S.cfg.timing); segSet('segQuant',S.cfg.quant);
+  $('selRoot').value=String(S.cfg.root); $('selScale').value=S.cfg.scale;
+  segSet('segWake',S.cfg.wake?'1':'0'); segSet('segSched',S.cfg.sched);
+  updStatus();
+}
+function openTrack(){
+  const t=curTr();
+  $('mtTitle').textContent='TRACCIA · '+t.name;
+  $('mtName').value=t.name; $('mtOct').value=String(t.oct);
+  $('mtVel').value=t.vel; $('mtAcc').value=t.acc; $('mtGate').value=t.gate; $('mtRate').value=String(t.rate); $('mtSwing').value=t.swing; $('mtOff').value=t.off;
+  updTrackLabels(); openModal('mTrack');
+}
+function updTrackLabels(){const t=curTr();
+  $('mtVelV').textContent=t.vel; $('mtAccV').textContent=t.acc; $('mtGateV').textContent=t.gate+'%'; $('mtSwingV').textContent=t.swing+'%';
+  $('mtOffV').textContent=(t.off>0?'+':'')+t.off+'ms';}
+function bindTrack(){
+  let oh=''; for(let o=0;o<=6;o++) oh+='<option value="'+o+'">C'+o+' (nota '+(12*(o+1))+')</option>'; $('mtOct').innerHTML=oh;
+  let rh=''; RATES.forEach(r=>{rh+='<option value="'+r[0]+'">'+r[1]+'</option>';}); $('mtRate').innerHTML=rh;
+  $('mtName').addEventListener('input',e=>{const t=curTr(); t.name=(e.target.value||'').slice(0,10)||(S.sel?'B1':'TD-3'); $('mtTitle').textContent='TRACCIA · '+t.name; dirty(); updRack(); renderGrid();});
+  $('mtOct').addEventListener('change',e=>{const t=curTr(); releaseTrack(S.sel); t.oct=clamp(Number(e.target.value)|0,0,6); dirty(); renderEditor();});
+  const rng=(id,key,a,b)=>$(id).addEventListener('input',e=>{curTr()[key]=clamp(Number(e.target.value)|0,a,b); dirty(); updTrackLabels();});
+  rng('mtVel','vel',1,127); rng('mtAcc','acc',1,127); rng('mtGate','gate',10,90); rng('mtSwing','swing',50,75); rng('mtOff','off',-40,60);
+  $('mtRate').addEventListener('change',e=>{const v=Number(e.target.value); if(RATES.some(r=>r[0]===v)) curTr().rate=v; dirty();});
+  $('mtTest').addEventListener('click',()=>testNote(S.sel));
+}
+
+/* ---- export / import ---- */
+function exportJson(){
+  try{const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}); const a=document.createElement('a');
+    const d=new Date(), pad=n=>String(n).padStart(2,'0');
+    a.href=URL.createObjectURL(blob); a.download='SQ-2_ACIDPILOT_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+'.json';
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+  }catch(e){flashBanner('Esportazione non riuscita.','err');}
+}
+function importJson(e){
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{try{const o=JSON.parse(String(r.result)); if(!o||!Array.isArray(o.trs)) throw new Error('x');
+      stopAll(); S=sanitize(o); afterLoad(); flashBanner('Set importato.','info');}
+    catch(x){flashBanner('File non valido.','err');}
+    e.target.value='';};
+  r.onerror=()=>{flashBanner('Lettura file non riuscita.','err'); e.target.value='';};
+  r.readAsText(f);
+}
+function afterLoad(){
+  RT.trs=[mkRtTrack(),mkRtTrack()]; RT.undo=null; RT.scene=-1; RT.selStep=0; RT.page=0; syncKbOct();
+  refreshPorts(); saveNow(); fillSetup(); updRack(); updScenes(); renderEditor(); updStatus();
+}
+
+/* ---- trasporto UI ---- */
+function bindTransport(){
+  $('btnPlay').addEventListener('click',()=>{
+    if(RT.running){stopAll(); return;}
+    if(S.cfg.src==='int') intStart();
+    else{resetTransport(); RT.running=true; RT.uiDirty=true; if(!RT.inp) flashBanner('Clock esterno: nessun ingresso selezionato.','info');}
+    wakeOn();
+  });
+  $('btnPanic').addEventListener('click',panic);
+  $('clkPill').addEventListener('click',()=>{fillSetup(); openModal('mSetup');});
+  $('btnFs').addEventListener('click',()=>{
+    try{ if(!document.fullscreenElement){const el=document.documentElement; if(el.requestFullscreen) el.requestFullscreen({navigationUI:'hide'}).catch(()=>{});}
+      else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{}); }catch(e){}
+  });
+  $('banner').addEventListener('click',()=>{
+    if(RT.bannerKind==='cta') initMidi();
+    else if(RT.bannerKind==='info'&&!bannerFlash){fillSetup(); openModal('mSetup');}
+  });
+}
+
+/* ---- wake lock ---- */
+async function wakeOn(){
+  if(!S.cfg.wake||!('wakeLock' in navigator)||document.visibilityState!=='visible') return;
+  try{ if(!RT.wake||RT.wake.released){RT.wake=await navigator.wakeLock.request('screen');} }catch(e){}
+}
+function wakeOff(){try{if(RT.wake){RT.wake.release(); RT.wake=null;}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible') wakeOn(); else saveNow();});
+window.addEventListener('pagehide',saveNow);
+document.addEventListener('pointerdown',function first(){wakeOn(); document.removeEventListener('pointerdown',first);},{once:true});
+
+/* ---- loop grafico ---- */
+let lastTxt='', lastLed=false, lastRun=null, lastBpmT=0, lastSrc='';
+function frame(){
+  const n=now();
+  if(RT.uiDirty){RT.uiDirty=false; updRack(); updPads(); renderGrid(); updScenes();}
+  for(let i=0;i<NT;i++){
+    const rt=RT.trs[i]; let idx=-1;
+    if(RT.running){const q=rt.hq; for(let j=q.length-1;j>=0;j--){if(q[j].t<=n){idx=q[j].i;break;}}}
+    if(idx!==rt.uiIdx){rt.uiIdx=idx; updBar(i); if(i===S.sel) updPlayhead();}
+    const e=RT.rackEls[i], lit=(n-rt.flash)>=0&&(n-rt.flash)<70;
+    if(lit!==e.ledOn){e.ledOn=lit; e.led.classList.toggle('lit',lit);}
+  }
+  const ext=S.cfg.src==='ext', has=n-RT.clk.seen<400;
+  const led=ext?(RT.running?(RT.tick>=0&&has&&(RT.tick%24)<4):(has&&(RT.clk.free%24)<4)):(RT.running&&RT.tick>=0&&(RT.tick%24)<4);
+  if(led!==lastLed){lastLed=led; $('clkLed').classList.toggle('lit',led);}
+  if(n-lastBpmT>150){lastBpmT=n;
+    const txt=ext?(has?(60000/(24*RT.clk.P)).toFixed(1):(RT.running?'WAIT':'----')):S.cfg.bpm.toFixed(1);
+    if(txt!==lastTxt){lastTxt=txt; $('bpmTxt').textContent=txt;}
+    const src=ext?'EXT':'INT'; if(src!==lastSrc){lastSrc=src; $('clkSrc').textContent=src;}
+  }
+  if(RT.running!==lastRun){lastRun=RT.running; const b=$('btnPlay'); b.classList.toggle('run',RT.running); b.textContent=RT.running?'■':'▶';}
+  requestAnimationFrame(frame);
+}
+
+/* ================= avvio ================= */
+buildRack(); buildScenes(); buildPads(); buildGrid(); buildKb();
+bindTools(); bindModals(); bindSetup(); bindTrack(); bindTransport();
+syncKbOct(); updRack(); updScenes(); renderEditor(); updStatus();
+requestAnimationFrame(frame);
+(async()=>{
+  if(!window.isSecureContext||!navigator.requestMIDIAccess){initMidi(); return;}
+  try{ if(navigator.permissions&&navigator.permissions.query){const p=await navigator.permissions.query({name:'midi'}); if(p.state==='granted'){initMidi(); return;}} }catch(e){}
+  updStatus();
+})();
+window.__SQ2={S:()=>S,RT:RT};
+})();
+</script>
+</body>
+</html>
